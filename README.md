@@ -17,27 +17,42 @@ All providers are accessed through their **official API endpoints** with user-su
 
 ## Installation
 
-1. Clone this repository:
+### One-Command Setup (Recommended)
+
+```bash
+git clone https://github.com/swipswaps/vscode-llm-multi-provider.git
+cd vscode-llm-multi-provider
+bash setup.sh
+```
+
+The `setup.sh` script will:
+1. Install dependencies (`npm install`)
+2. Compile TypeScript (`npm run compile`)
+3. Open API key pages in your browser for each provider
+4. Securely store your keys
+5. Package and install the extension
+
+After setup completes, open the folder in VS Code and press **F5** to start using the extension.
+
+### Manual Setup
+
+If you prefer manual control:
+
+1. Clone and install:
 ```bash
    git clone https://github.com/swipswaps/vscode-llm-multi-provider.git
    cd vscode-llm-multi-provider
-```
-
-2. Install dependencies:
-```bash
    npm install
-```
-
-3. Compile TypeScript:
-```bash
    npm run compile
 ```
 
-4. Press **F5** in VS Code to open Extension Development Host.
+2. Open in VS Code and press **F5**
+
+3. In the Extension Development Host, run `LLM: Set API Keys` and enter your keys manually
 
 ## Usage
 
-### 1. Set API Keys
+### 1. Set API Keys (if not using setup.sh)
 
 Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run:
 LLM: Set API Keys
@@ -60,6 +75,16 @@ Run:
 LLM: Ask Question
 
 Type your prompt. The response streams to the **LLM Response** output channel.
+
+## Getting API Keys
+
+The `setup.sh` script opens these pages automatically:
+
+- **OpenAI**: https://platform.openai.com/api-keys
+- **Anthropic**: https://console.anthropic.com/settings/keys
+- **DeepSeek**: https://platform.deepseek.com/api_keys
+
+You need at least **one** API key. All three providers offer free tiers or trial credits.
 
 ## Architecture
 ┌─────────────────────────────────────────┐
@@ -96,6 +121,7 @@ new OpenAI({
 - Keys are stored in **VS Code SecretStorage** (encrypted at rest)
 - Keys are **never logged** or written to files
 - Keys are **never transmitted** except to official provider endpoints over HTTPS
+- Temporary key file (`.vscode-llm-keys.json`) is automatically deleted after import
 
 ## Model Defaults
 

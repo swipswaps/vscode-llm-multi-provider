@@ -1,12 +1,13 @@
 // PATH: src/extension.ts
-// WHAT: VS Code extension entry point — command registration and provider management
-// WHY: activates on first llm.* command, stores provider instances, routes to active provider
-// MENTAL MODEL BEFORE: no providers instantiated
-// MENTAL MODEL AFTER: providers created from stored API keys, activeProvider set
-// FAILURE MODE: secrets.get returns undefined — user must run llm.setKeys first
-// VERIFIES WITH: Command Palette shows "LLM: Ask Question" after activation
+// WHAT: VS Code extension entry point with auto-import from setup.sh
+// WHY: eliminates manual key entry step — setup.sh writes JSON, extension imports on activate
+// MENTAL MODEL: .vscode-llm-keys.json present → auto-import → delete file → keys in SecretStorage
+// FAILURE MODE: key file missing → user must run LLM: Set API Keys manually (expected behavior)
+// VERIFIES WITH: LLM: Ask Question works immediately after F5
 
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { LLMProvider } from './provider';
 import { OpenAIClient } from './openai-client';
 import { AnthropicClient } from './anthropic-client';
@@ -15,13 +16,15 @@ let activeProvider: LLMProvider | undefined;
 let providerName: string = 'openai';
 
 export async function activate(context: vscode.ExtensionContext) {
+  // WHY: auto-import keys from setup.sh if key file exists
+  // Source (Tier 2): VS Code SecretStorage.store
+  //   https://code.visualstudio.com/api/references/vscode-api#SecretStorage
+  await autoImportKeysFromSetup(context);
+  
   // WHY: initialize providers from stored keys on activation
-  // FAILURE MODE: if keys not set, activeProvider remains undefined — handled in llm.ask
   await initializeProviders(context);
 
   // WHY: llm.setKeys command stores API keys in VS Code SecretStorage
-  // Source (Tier 2): VS Code SecretStorage API
-  //   https://code.visualstudio.com/api/references/vscode-api#SecretStorage
   context.subscriptions.push(
     vscode.commands.registerCommand('llm.setKeys', async () => {
       const openaiKey = await vscode.window.showInputBox({
@@ -46,7 +49,6 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // WHY: llm.selectProvider switches active provider
   context.subscriptions.push(
     vscode.commands.registerCommand('llm.selectProvider', async () => {
       const choice = await vscode.window.showQuickPick(
@@ -61,9 +63,6 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // WHY: llm.ask prompts user for input and streams response to output channel
-  // MENTAL MODEL: user types prompt → provider streams chunks → output channel displays
-  // FAILURE MODE: activeProvider undefined → show error message
   context.subscriptions.push(
     vscode.commands.registerCommand('llm.ask', async () => {
       if (!activeProvider) {
@@ -78,11 +77,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (!prompt) return;
 
-      // WHY: output channel provides append-only display for streaming responses
-      // NOTE: createOutputChannel is one-way — each appendLine adds new line.
-      //       For in-place streaming updates, WebviewPanel is required.
-      // Source (Tier 2): VS Code OutputChannel API
-      //   https://code.visualstudio.com/api/references/vscode-api#OutputChannel
       const output = vscode.window.createOutputChannel('LLM Response');
       output.show();
       output.appendLine(`[${providerName}] ${prompt}\n`);
@@ -99,16 +93,40 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 }
 
+// WHY: auto-import keys from .vscode-llm-keys.json if present
+// MENTAL MODEL: setup.sh creates key file → extension imports → deletes file
+// FAILURE MODE: file missing → silent no-op (expected when keys set manually)
+async function autoImportKeysFromSetup(context: vscode.ExtensionContext) {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!workspaceFolder) return;
+
+  const keyFilePath = path.join(workspaceFolder, '.vscode-llm-keys.json');
+  
+  if (!fs.existsSync(keyFilePath)) return;
+
+  try {
+    const keyData = JSON.parse(fs.readFileSync(keyFilePath, 'utf8'));
+    
+    if (keyData.openai) await context.secrets.store('openaiKey', keyData.openai);
+    if (keyData.anthropic) await context.secrets.store('anthropicKey', keyData.anthropic);
+    if (keyData.deepseek) await context.secrets.store('deepseekKey', keyData.deepseek);
+    
+    // WHY: delete key file after successful import for security
+    // Source (Tier 2): fs.unlinkSync removes file synchronously
+    //   https://nodejs.org/api/fs.html#fsunlinksyncpath
+    fs.unlinkSync(keyFilePath);
+    
+    vscode.window.showInformationMessage('API keys imported from setup.sh');
+  } catch (error) {
+    console.error('Failed to import keys from setup:', error);
+  }
+}
+
 async function initializeProviders(context: vscode.ExtensionContext) {
-  // WHY: secrets.get retrieves stored API keys — undefined if not set
-  // Source (Tier 2): VS Code SecretStorage.get
-  //   https://code.visualstudio.com/api/references/vscode-api#SecretStorage
   const openaiKey = await context.secrets.get('openaiKey');
   const anthropicKey = await context.secrets.get('anthropicKey');
   const deepseekKey = await context.secrets.get('deepseekKey');
 
-  // WHY: instantiate active provider based on providerName
-  // DeepSeek uses OpenAI SDK with baseURL override
   switch (providerName) {
     case 'openai':
       if (openaiKey) activeProvider = new OpenAIClient(openaiKey);
