@@ -11,8 +11,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:llm.ask",
-    "onCommand:llm.setKeys"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
