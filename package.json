@@ -1,0 +1,52 @@
+{
+  "name": "vscode-llm-multi-provider",
+  "displayName": "LLM Multi-Provider",
+  "description": "Multi-LLM provider assistant (OpenAI, Anthropic, DeepSeek) using official APIs only",
+  "version": "0.1.0",
+  "publisher": "yourname",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:llm.ask",
+    "onCommand:llm.setKeys"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "llm.ask",
+        "title": "LLM: Ask Question"
+      },
+      {
+        "command": "llm.setKeys",
+        "title": "LLM: Set API Keys"
+      },
+      {
+        "command": "llm.selectProvider",
+        "title": "LLM: Select Provider"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "openai": "^4.75.0",
+    "@anthropic-ai/sdk": "^0.38.0"
+  }
+}
